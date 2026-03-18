@@ -1,0 +1,341 @@
+---
+title: "PS/2021/245_GLM_project"
+author: "PS/2021/245"
+date: "2026-02-21"
+output: html_document
+---
+
+```{r}
+# Load the data set
+heart <- heart_disease_classification_dataset
+
+# Identifying where the missing values occur
+colSums(is.na(heart))
+
+# check total number of missing values
+sum(is.na(heart))
+```
+
+```{r}
+# Encoding Categorical Variables
+heart$sex <- ifelse(heart$sex == "male", 1, 0)
+heart$target <- ifelse(heart$target == "yes", 1, 0)
+```
+
+```{r}
+# scale all except the 'target' column
+scaled_features <- scale(heart[, -14]) 
+target_labels <- heart$target
+```
+
+```{r}
+# Data Cleaning
+# Remove the first index column
+heart <- heart[,-1]
+```
+
+```{r}
+# Handling Missing Values with KNN Imputation
+library(VIM)
+missing_before <- sum(is.na(heart))
+if (missing_before>0) {
+  heart_imputed <- VIM::kNN(heart,k=5,imp_var = FALSE)
+  heart_final <- heart_imputed
+} else {
+  heart_final <- heart
+}
+```
+
+
+
+```{r}
+# Check again missing value to verify
+sum(is.na(heart_final))
+colSums(is.na(heart_final))
+```
+
+```{r}
+# display data set
+heart_final
+```
+
+```{r}
+# convert categorical variable to factor 
+heart_final$sex <- as.factor(heart_final$sex)
+heart_final$cp <- as.factor(heart_final$cp)
+heart_final$fbs <- as.factor(heart_final$fbs)
+heart_final$restecg <- as.factor(heart_final$restecg)
+heart_final$exang <- as.factor(heart_final$exang)
+heart_final$slope <- as.factor(heart_final$slope)
+heart_final$ca <- as.factor(heart_final$ca)
+heart_final$thal <- as.factor(heart_final$thal)
+heart_final$target <- as.factor(heart_final$target)
+```
+
+```{r}
+# numeric variable data frame
+numeric_variable <- sapply(heart_final,is.numeric)
+data_numeric <- heart[,numeric_variable]
+print(paste("Numeric variables :",names(data_numeric)))
+
+#factor variable
+categorical_var <- sapply(heart_final, is.factor)
+data_categorical <- heart[,categorical_var]
+print(paste("Categorical  variables :",names(data_categorical)))
+```
+
+```{r}
+# checking outliers
+for (col in names(data_numeric)) {
+  boxplot(data_numeric[[col]],
+          main = paste("Box plot for ",col),
+          col = "yellow",
+          sub = paste("Outliers :",boxplot.stats(data_numeric[[col]])$out,collapse = ","))
+}
+```
+
+```{r}
+summary(heart_final)
+```
+
+```{r}
+# Frequency tables
+table(heart_final$target)
+table(heart_final$sex)
+table(heart_final$cp)
+table(heart_final$fbs)
+table(heart_final$restecg)
+table(heart_final$exang)
+table(heart_final$slope)
+table(heart_final$ca)
+table(heart_final$thal)
+```
+
+```{r}
+# 03.Data Exploration 
+library(ggplot2)
+```
+
+```{r}
+# Distribution of Heart Disease Status
+ggplot(heart_final, aes(x=factor(target), fill=factor(target))) +
+  geom_bar() +
+  scale_fill_manual(values=c("skyblue", "pink"), labels=c("No Disease", "Heart Disease")) +
+  labs(title="Distribution of Heart Disease Status", 
+       subtitle="Visualizing the healthy and high-risk patients",
+       x="Status (0 = No, 1 = Yes)", y="Patient Count") +
+  theme_minimal()
+```
+
+```{r}
+# Age Distribution of Heart Disease
+age_account_plot <- ggplot(heart_final, aes(x = age, fill = factor(target))) +
+  geom_density(alpha = 0.6) +
+  labs(title = "Age Distribution: Heart Disease vs Non-Heart Disease",
+       x = "Age", y = "Density",
+       fill = "Heart Disease") +
+  scale_fill_manual(values = c("0" = "blue", "1" = "red"),
+                    labels = c("No Heart Disease", "Has Heart Disease")) +
+  theme_minimal()
+print(age_account_plot)
+```
+
+```{r}
+# Chest Pain Type vs Diagnosis
+ggplot(heart_final, aes(x=factor(cp), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  labs(title="Chest Pain Type vs Diagnosis",
+       subtitle="Categorical analysis of pain types (0-3) and disease presence",
+       x="Chest Pain Type", y="Count", fill="Heart Disease") + scale_fill_manual(values=c("yellow", "red"))
+  
+  theme_classic()
+```
+
+```{r}
+# Correlation Heatmap for continuous Variables
+library(corrplot)
+numeric_vars <- heart_final[, sapply(heart_final, is.numeric)]
+cor_matrix <- cor(numeric_vars)
+corrplot(cor_matrix, method="color", type="upper", addCoef.col = "black", 
+         tl.col="black", tl.srt=45, title="\n Correlation Heatmap of Variables")
+```
+
+```{r}
+ggplot(heart_final, aes(x=factor(sex), fill=factor(target))) +
+  geom_bar(position="fill") +
+  scale_x_discrete(labels=c("Female", "Male")) +
+  scale_fill_manual(values=c("blue", "red"), name="Heart Disease") +
+  labs(title="Proportion of Heart Disease by Gender",
+       subtitle="Analyzing risk distribution between Males and Females",
+       x="Gender", y="Proportion") +
+  theme_minimal()
+```
+
+```{r}
+# Fasting Blood Sugar vs Target
+ggplot(heart_final, aes(x=factor(fbs), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  scale_x_discrete(labels=c("FBS < 120", "FBS > 120")) +
+  scale_fill_manual(values=c("blue", "red")) +
+  labs(title="Fasting Blood Sugar Impact on Heart Disease",
+       Subtitle="Analyzing diabetes indicators as a cardiovascular risk factor",
+       X="Fasting Blood Sugar", y="Count", fill="Heart Disease") +
+  theme_minimal()
+```
+
+```{r}
+# Slope of the ST Segment vs Target
+ggplot(heart_final, aes(x=factor(slope), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  scale_x_discrete(labels=c("Upsloping", "Flat", "Downsloping")) +
+    scale_fill_manual(values=c("black", "red")) +
+  labs(title="ST Segment Slope Analysis",
+       subtitle="0=Upsloping, 1=Flat, 2=Downsloping",
+       x="ST Segment Slope", y="Count", fill="Heart Disease") +
+  theme_light()
+```
+
+```{r}
+# Number of Major Vessels vs Target
+ggplot(heart_final, aes(x=factor(ca), fill=factor(target))) +
+  geom_bar(position="dodge") +
+   scale_fill_manual(values=c("black", "blue")) +
+  labs(title="Impact of Major Vessels (ca) on Diagnosis",
+       X="Number of Major Vessels", y="Count", fill="Heart Disease") +
+  theme_minimal()
+```
+
+```{r}
+# Density Plot for Cholesterol
+ggplot(heart_final, aes(x=chol, fill=factor(target))) +
+  geom_density(alpha=0.5) +
+  scale_fill_manual(values=c("yellow","purple"), 
+                    labels=c("No Disease", "Heart Disease"),
+                    name="Status") +
+  labs(title="Density Plot of Serum Cholesterol",
+       subtitle="Analyzing the distribution of cholesterol levels across patient categories",
+       X="Serum Cholesterol (mg/dl)", y="Density") +
+  theme_minimal()
+```
+
+```{r}
+# Thalassemia (thal) vs Target
+ggplot(heart_final, aes(x=factor(thal), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  scale_x_discrete(labels=c("Normal", "Fixed Defect", "Reversible Defect", "no proper blood 
+movement")) +
+    scale_fill_manual(values=c("yellow","purple"))+ 
+  labs(title="Impact of Thalassemia on Heart Disease",
+       subtitle="Analyzing blood flow defects (thal) as a diagnostic marker",
+       X="Thalassemia Status", y="Patient Count", fill="Heart Disease") +
+  theme_minimal()
+```
+
+```{r}
+# Resting ECG (restecg) vs Target
+ggplot(heart_final, aes(x=factor(restecg), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  scale_x_discrete(labels=c("Normal", "ST-T Wave Abn", "LV Hypertrophy")) +
+  scale_fill_manual(values=c("yellow","black"))+ 
+  labs(title="Resting ECG Results",
+       subtitle="0=Normal, 1=ST-T wave abnormality, 2=Left ventricular hypertrophy",
+       x="Resting ECG Results", y="Patient Count", fill="Heart Disease") +
+  theme_minimal()
+```
+
+```{r}
+# Exercise Induced exang vs Target
+ggplot(heart_final, aes(x=factor(exang), fill=factor(target))) +
+  geom_bar(position="dodge") +
+  scale_x_discrete(labels=c("No exang", "exang Induced")) +
+  scale_fill_manual(values=c("black", "blue"), name="Heart Disease")  +
+  theme_minimal()
+```
+
+```{r}
+ggplot(heart_final, aes(x=oldpeak, fill=factor(target))) +
+  geom_density(alpha=0.5) +
+  scale_fill_manual(values=c("yellow", "blue"))+ 
+  labs(title="Density of ST Depression (oldpeak)",
+       x="Oldpeak Value", y="Density") +
+  theme_classic()
+```
+
+```{r}
+ggplot(heart_final, aes(x=trestbps, fill=factor(target))) +
+  geom_histogram(binwidth = 10, alpha=0.6, position="identity") +
+  scale_fill_manual(values=c("blue", "yellow"), labels=c("Healthy", "Disease")) +
+  labs(title="Distribution of Resting Blood Pressure",
+       subtitle="Identifying trends in blood pressure (trestbps) among patient groups",
+       X="Resting Blood Pressure (mmHg)", y="Frequency", fill="Target") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(heart_final, aes(x=factor(target), y=thalach, fill=factor(target))) +
+  geom_boxplot(outlier.colour="red", outlier.shape=8) +
+  labs(title="Maximum Heart Rate (thalach) Comparison",
+       x="Heart Disease (0=No, 1=Yes)", y="Max Heart Rate (bpm)") +
+  theme_bw()
+```
+
+
+```{r}
+# 04.Data analysis and interpretation
+# setseed % splitting dataset
+set.seed(245)
+split <- sample(1:nrow(heart_final),size = 0.8*nrow(heart_final))
+train_data <- heart_final[split, ]
+test_data <- heart_final[-split, ]
+```
+
+```{r}
+# model with logistic regression
+heart_model <- glm(target~. ,data = train_data, family = "binomial")
+summary(heart_model)
+```
+
+```{r}
+# check multicollinearity
+library(car)
+vif(heart_model)
+```
+
+
+
+```{r}
+library(MASS)
+
+# Stepwise regression model for both direction with AIC criterion 
+final_model <- stepAIC(heart_model, direction = "backward", trace = TRUE)
+summary(final_model)
+```
+
+```{r}
+# model with logistic regression
+heart_model_new <- glm(target~ sex+cp+trestbps+slope+exang+ca,data = train_data, family = "binomial")
+summary(heart_model_new)
+```
+
+
+```{r}
+# Residual plots
+par(mfrow = c(2, 2))
+plot(heart_model_new)
+```
+
+```{r}
+# check accuracy
+final_probs <- predict(heart_model_new,newdata = test_data,type = "response")
+final_preds <- ifelse(final_probs> 0.5,1,0)
+
+accuracy <- mean(final_preds== test_data$target)
+print(paste("Final Model Accuracy: ", round(accuracy*100,2), "%"))
+```
+
+```{r}
+# check accuracy
+conf_matrix <- table(Actual = test_data$target, Predicted = final_preds)
+print(conf_matrix)
+```
+
